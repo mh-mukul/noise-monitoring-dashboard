@@ -22,6 +22,7 @@ export default function Home() {
     const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(new Date());
+    const [isLoading, setIsLoading] = useState(true);
 
     const timezone = useMemo(() => {
         return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -30,6 +31,7 @@ export default function Home() {
     // Initial fetch
     useEffect(() => {
         const loadData = async () => {
+            setIsLoading(true);
             try {
                 const data = await fetchReadings(2000); // Fetch enough history
                 setReadings(data);
@@ -37,6 +39,8 @@ export default function Home() {
             } catch (error) {
                 toast.error("Failed to load noise readings");
                 console.error(error);
+            } finally {
+                setIsLoading(false);
             }
         };
         loadData();
@@ -76,6 +80,7 @@ export default function Home() {
     }, [autoRefresh, readings]);
 
     const handleRefresh = useCallback(async () => {
+        setIsLoading(true);
         try {
             const data = await fetchReadings(2000);
             setReadings(data);
@@ -83,6 +88,8 @@ export default function Home() {
             toast.success("Data refreshed");
         } catch (error) {
             toast.error("Failed to refresh data");
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -149,6 +156,7 @@ export default function Home() {
                         subtitle="Last 10 seconds"
                         icon={<Volume2 className="h-4 w-4" />}
                         variant={noiseLevel}
+                        loading={isLoading}
                     />
                     <KPICard
                         title="Current Max dBA"
@@ -156,12 +164,14 @@ export default function Home() {
                         subtitle="Last 10 seconds"
                         icon={<TrendingUp className="h-4 w-4" />}
                         variant={getNoiseLevel(kpiData.maxDba)}
+                        loading={isLoading}
                     />
                     <KPICard
                         title="Noise Status"
                         value={<NoiseStatusBadge dba={kpiData.avgDba} size="lg" />}
                         subtitle={selectedDeviceId ? "Selected device" : "All devices"}
                         icon={<Activity className="h-4 w-4" />}
+                        loading={isLoading}
                     />
                     <KPICard
                         title="Peak Count"
@@ -175,6 +185,7 @@ export default function Home() {
                                     ? "elevated"
                                     : "default"
                         }
+                        loading={isLoading}
                     />
                 </div>
 
@@ -184,6 +195,7 @@ export default function Home() {
                     <RealTimeTrendChart
                         readings={readings}
                         deviceId={selectedDeviceId || undefined}
+                        loading={isLoading}
                     />
                 </div>
 

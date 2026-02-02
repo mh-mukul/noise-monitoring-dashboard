@@ -12,6 +12,7 @@ import {
   ComposedChart,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { NoiseReading } from '@/lib/mockData'; // Keeping NoiseReading type, but will fetch from real API
@@ -184,8 +185,16 @@ export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) 
       <CardContent>
         <div className="h-[350px] w-full">
           {isLoading ? (
-            <div className="h-full w-full flex items-center justify-center">
-              <span className="text-muted-foreground animate-pulse">Loading data...</span>
+            <div className="h-full w-full flex flex-col gap-2">
+              <Skeleton className="h-full w-full" />
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-12" />
+              </div>
             </div>
           ) : chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">

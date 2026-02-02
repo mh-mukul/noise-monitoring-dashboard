@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 interface KPICardProps {
@@ -8,6 +9,7 @@ interface KPICardProps {
   icon?: React.ReactNode;
   variant?: 'default' | 'normal' | 'elevated' | 'high' | 'critical';
   trend?: 'up' | 'down' | 'stable';
+  loading?: boolean;
 }
 
 const variantStyles = {
@@ -26,7 +28,7 @@ const valueStyles = {
   critical: 'text-[hsl(var(--noise-critical))]',
 };
 
-export function KPICard({ title, value, subtitle, icon, variant = 'default' }: KPICardProps) {
+export function KPICard({ title, value, subtitle, icon, variant = 'default', loading }: KPICardProps) {
   return (
     <Card className={cn('transition-all hover:shadow-md', variantStyles[variant])}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -34,11 +36,20 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default' }: K
         {icon && <div className="text-muted-foreground">{icon}</div>}
       </CardHeader>
       <CardContent>
-        <div className={cn('text-3xl font-bold tracking-tight', valueStyles[variant])}>
-          {value}
-        </div>
-        {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+        {loading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-[100px]" />
+            <Skeleton className="h-4 w-[140px]" />
+          </div>
+        ) : (
+          <>
+            <div className={cn('text-3xl font-bold tracking-tight', valueStyles[variant])}>
+              {value}
+            </div>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

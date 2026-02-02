@@ -1,6 +1,6 @@
 import { NoiseReading } from './mockData';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 export async function fetchReadings(limit: number = 1000): Promise<NoiseReading[]> {
     const response = await fetch(`${API_BASE_URL}/readings?limit=${limit}`);

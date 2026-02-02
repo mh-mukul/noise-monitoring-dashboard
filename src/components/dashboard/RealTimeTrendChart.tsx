@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { NoiseReading, NOISE_THRESHOLDS } from '@/lib/mockData';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface RealTimeTrendChartProps {
   readings: NoiseReading[];
@@ -29,7 +29,7 @@ export function RealTimeTrendChart({ readings, deviceId }: RealTimeTrendChartPro
 
     // Group by timestamp and average across devices if no specific device selected
     const grouped = new Map<string, { avg: number[]; max: number[]; min: number[] }>();
-    
+
     for (const reading of filtered) {
       const timeKey = reading.created_at;
       if (!grouped.has(timeKey)) {
@@ -42,13 +42,22 @@ export function RealTimeTrendChart({ readings, deviceId }: RealTimeTrendChartPro
     }
 
     return Array.from(grouped.entries())
-      .map(([time, values]) => ({
-        time,
-        timeLabel: format(new Date(time), 'HH:mm:ss'),
-        avg: Number((values.avg.reduce((a, b) => a + b, 0) / values.avg.length).toFixed(1)),
-        max: Math.max(...values.max),
-        min: Math.min(...values.min),
-      }))
+      .map(([time, values]) => {
+        let label = time;
+        try {
+          // parseISO handles the 'Z' or lack thereof correctly to create a local Date object
+          label = format(parseISO(time), 'HH:mm:ss');
+        } catch (e) {
+          // Fallback
+        }
+        return {
+          time,
+          timeLabel: label,
+          avg: Number((values.avg.reduce((a, b) => a + b, 0) / values.avg.length).toFixed(1)),
+          max: Math.max(...values.max),
+          min: Math.min(...values.min),
+        };
+      })
       .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
       .slice(-90); // Last 15 minutes at 10s intervals
   }, [readings, deviceId]);

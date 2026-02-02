@@ -17,3 +17,24 @@ export async function fetchLatestReadings(since: Date): Promise<NoiseReading[]> 
     }
     return response.json();
 }
+
+export interface HistoricalParams {
+    range: string;
+    breakdown: string;
+    startDate?: string;
+    endDate?: string;
+    deviceId?: string;
+}
+
+export async function fetchHistoricalData(params: HistoricalParams): Promise<any[]> {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/readings/historical?${queryParams.toString()}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch historical data');
+    }
+    return response.json();
+}

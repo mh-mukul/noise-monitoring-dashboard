@@ -179,7 +179,7 @@ const Index = () => {
         </div>
 
         {/* Historical Trends */}
-        <HistoricalTrendsChart readings={readings} />
+        <HistoricalTrendsChart deviceId={selectedDeviceId || undefined} />
       </div>
     </div>
   );

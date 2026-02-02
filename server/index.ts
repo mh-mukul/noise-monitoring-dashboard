@@ -104,6 +104,103 @@ app.get('/api/readings/latest', async (req, res) => {
     }
 });
 
+// Get historical readings with aggregation
+app.get('/api/readings/historical', async (req, res) => {
+    try {
+        const { range, breakdown, startDate, endDate, deviceId } = req.query;
+
+        let startTime: Date;
+        let endTime = new Date(); // This is the current server time (UTC usually in node, but let's be explicit)
+
+        switch (range) {
+            case 'last_hour':
+                startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
+                break;
+            case 'today':
+                // Today in UTC
+                startTime = new Date(endTime);
+                startTime.setUTCHours(0, 0, 0, 0);
+                break;
+            case 'this_week':
+                // Week starts Sunday in UTC
+                startTime = new Date(endTime);
+                const day = startTime.getUTCDay();
+                startTime.setUTCDate(startTime.getUTCDate() - day);
+                startTime.setUTCHours(0, 0, 0, 0);
+                break;
+            case 'this_month':
+                startTime = new Date(endTime);
+                startTime.setUTCDate(1);
+                startTime.setUTCHours(0, 0, 0, 0);
+                break;
+            case 'date_range':
+                if (!startDate || !endDate) {
+                    return res.status(400).json({ error: 'startDate and endDate are required for date_range' });
+                }
+                startTime = new Date(startDate as string);
+                endTime = new Date(endDate as string);
+                break;
+            default:
+                startTime = new Date(endTime.getTime() - 60 * 60 * 1000); // Default last hour
+        }
+
+        let timeFormat: string;
+        switch (breakdown) {
+            case 'second':
+                timeFormat = '%Y-%m-%dT%H:%i:%sZ';
+                break;
+            case 'minute':
+                timeFormat = '%Y-%m-%dT%H:%i:00Z';
+                break;
+            case 'hour':
+                timeFormat = '%Y-%m-%dT%H:00:00Z';
+                break;
+            case 'day':
+                timeFormat = '%Y-%m-%dT00:00:00Z';
+                break;
+            default:
+                timeFormat = '%Y-%m-%dT%H:%i:00Z'; // Default minute
+        }
+
+        let query = `
+            SELECT 
+                DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+00:00'), ?) as time,
+                AVG(avg_dba) as avg,
+                MAX(max_dba) as max,
+                MIN(min_dba) as min
+            FROM noise_readings 
+            WHERE created_at BETWEEN ? AND ?
+        `;
+
+        const params: any[] = [timeFormat, startTime, endTime];
+
+        if (deviceId) {
+            query += ` AND device_id = ?`;
+            params.push(deviceId);
+        }
+
+        query += ` GROUP BY time ORDER BY time ASC`;
+
+        const [rows] = await pool.query<any[]>(query, params);
+
+        // Since we don't have p95 in the database yet and calculating it in SQL is complex without percentile functions,
+        // we'll approximate it or just return the existing fields for now.
+        // For a more accurate p95, we'd need a subquery or a stored procedure, but let's stick to simple aggregation first.
+        const formattedRows = rows.map((row: any) => ({
+            time: row.time,
+            avg: Number(Number(row.avg).toFixed(2)),
+            max: Number(Number(row.max).toFixed(2)),
+            min: Number(Number(row.min).toFixed(2)),
+            p95: Number(Number(row.max).toFixed(2)) // Placeholder for now
+        }));
+
+        res.json(formattedRows);
+    } catch (error) {
+        console.error('Error fetching historical readings:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });

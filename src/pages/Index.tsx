@@ -3,58 +3,84 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { NoiseStatusBadge } from '@/components/dashboard/NoiseStatusBadge';
 import { RealTimeTrendChart } from '@/components/dashboard/RealTimeTrendChart';
-import { WaveformChart } from '@/components/dashboard/WaveformChart';
-import { DistributionChart } from '@/components/dashboard/DistributionChart';
 import { HistoricalTrendsChart } from '@/components/dashboard/HistoricalTrendsChart';
-import { DeviceComparisonChart } from '@/components/dashboard/DeviceComparisonChart';
 import {
-  generateHistoricalData,
-  generateNewReading,
   getLatestReadings,
   getNoiseLevel,
-  DEVICES,
   NoiseReading,
 } from '@/lib/mockData';
+import { fetchReadings, fetchLatestReadings } from '@/lib/api';
 import { Volume2, TrendingUp, AlertTriangle, Activity } from 'lucide-react';
+import { toast } from 'sonner';
 
 const REFRESH_INTERVAL = 10000; // 10 seconds
 
 const Index = () => {
-  const [readings, setReadings] = useState<NoiseReading[]>(() => generateHistoricalData(15));
+  const [readings, setReadings] = useState<NoiseReading[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [waveformOpen, setWaveformOpen] = useState(false);
-  const [selectedReading, setSelectedReading] = useState<NoiseReading | null>(null);
 
   const timezone = useMemo(() => {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await fetchReadings(2000); // Fetch enough history
+        setReadings(data);
+        setLastUpdated(new Date());
+      } catch (error) {
+        toast.error('Failed to load noise readings');
+        console.error(error);
+      }
+    };
+    loadData();
   }, []);
 
   // Add new readings periodically
   useEffect(() => {
     if (!autoRefresh) return;
 
-    const interval = setInterval(() => {
-      setReadings((prev) => {
-        const lastId = Math.max(...prev.map((r) => r.id));
-        const newReadings = DEVICES.map((device, i) =>
-          generateNewReading(device.id, lastId + i)
-        );
-        // Keep only last 15 minutes of data
-        const cutoff = new Date(Date.now() - 15 * 60 * 1000);
-        const filtered = prev.filter((r) => new Date(r.created_at) > cutoff);
-        return [...filtered, ...newReadings];
-      });
-      setLastUpdated(new Date());
+    const interval = setInterval(async () => {
+      try {
+        const latestTime = readings.length > 0
+          ? new Date(readings[readings.length - 1].created_at)
+          : new Date(Date.now() - 60000); // Default to 1 min ago if empty
+
+        const newReadings = await fetchLatestReadings(latestTime);
+
+        if (newReadings.length > 0) {
+          setReadings((prev) => {
+            // Append and keep only last 15 minutes of data approx? 
+            // Or maybe just keeping last N items is better for performance?
+            // Let's keep 4000 items to be safe for charts.
+            const allReadings = [...prev, ...newReadings];
+            // Sort to ensure order
+            allReadings.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            return allReadings.slice(-4000);
+          });
+          setLastUpdated(new Date());
+        }
+      } catch (error) {
+        console.error('Failed to fetch new readings', error);
+      }
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, readings]);
 
-  const handleRefresh = useCallback(() => {
-    setReadings(generateHistoricalData(15));
-    setLastUpdated(new Date());
+  const handleRefresh = useCallback(async () => {
+    try {
+      const data = await fetchReadings(2000);
+      setReadings(data);
+      setLastUpdated(new Date());
+      toast.success('Data refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh data');
+    }
   }, []);
 
   // Filter readings by device if selected
@@ -77,14 +103,18 @@ const Index = () => {
 
     const avgDba = allLatest.reduce((sum, r) => sum + r.avg_dba, 0) / allLatest.length;
     const maxDba = Math.max(...allLatest.map((r) => r.max_dba));
-    
+
     // Count peaks above 60 dBA in last 5 minutes
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
     const recentReadings = filteredReadings.filter(
       (r) => new Date(r.created_at) > fiveMinAgo
     );
     const peakCount = recentReadings.reduce(
-      (sum, r) => sum + r.peaks.filter((p) => p > 60).length,
+      (sum, r) => {
+        // Handle cases where peaks might be null or undefined if DB data is impartial
+        if (!r.peaks || !Array.isArray(r.peaks)) return sum;
+        return sum + r.peaks.filter((p) => p > 60).length;
+      },
       0
     );
 
@@ -94,14 +124,6 @@ const Index = () => {
       peakCount,
     };
   }, [latestReadings, filteredReadings]);
-
-  // Set selected reading for waveform when available
-  useEffect(() => {
-    const latest = Array.from(latestReadings.values())[0];
-    if (latest && !selectedReading) {
-      setSelectedReading(latest);
-    }
-  }, [latestReadings, selectedReading]);
 
   const noiseLevel = getNoiseLevel(kpiData.avgDba);
 
@@ -151,30 +173,9 @@ const Index = () => {
         </div>
 
         {/* Main Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            {/* Real-time Trend */}
-            <RealTimeTrendChart readings={readings} deviceId={selectedDeviceId || undefined} />
-            
-            {/* Waveform Analysis */}
-            <WaveformChart
-              reading={selectedReading}
-              isOpen={waveformOpen}
-              onToggle={() => setWaveformOpen(!waveformOpen)}
-            />
-          </div>
-
-          <div className="space-y-6">
-            {/* Device Comparison */}
-            <DeviceComparisonChart
-              readings={readings}
-              onDeviceSelect={setSelectedDeviceId}
-              selectedDeviceId={selectedDeviceId}
-            />
-            
-            {/* Distribution */}
-            <DistributionChart readings={readings} />
-          </div>
+        <div className="space-y-6">
+          {/* Real-time Trend */}
+          <RealTimeTrendChart readings={readings} deviceId={selectedDeviceId || undefined} />
         </div>
 
         {/* Historical Trends */}

@@ -31,7 +31,7 @@ export function DashboardHeader({
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Noise Monitoring</h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
+          <p className="text-sm text-muted-foreground flex items-center gap-1" suppressHydrationWarning>
             <Clock className="h-3 w-3" />
             Last updated: {lastUpdated.toLocaleTimeString()} ({timezone})
           </p>
@@ -40,7 +40,7 @@ export function DashboardHeader({
 
       <div className="flex flex-wrap items-center gap-4">
         <DeviceSelector value={selectedDeviceId} onChange={onDeviceChange} />
-        
+
         <div className="flex items-center gap-2">
           <Switch
             id="auto-refresh"

@@ -46,6 +46,29 @@ export async function GET(request: NextRequest) {
                 startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
         }
 
+        // Calculate the time span in milliseconds
+        const timeSpanMs = endTime.getTime() - startTime.getTime();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        const sevenDaysMs = 7 * oneDayMs;
+
+        // Determine which table to use based on date range and breakdown
+        let tableName: string;
+        let useRollup = false;
+
+        if (breakdown === "day" || timeSpanMs > sevenDaysMs) {
+            // Use hourly rollup for day breakdown or ranges > 7 days
+            tableName = "noise_rollup_hour";
+            useRollup = true;
+        } else if (breakdown === "hour" || timeSpanMs > oneDayMs) {
+            // Use minute rollup for hour breakdown or ranges > 1 day
+            tableName = "noise_rollup_minute";
+            useRollup = true;
+        } else {
+            // Use raw readings for second/minute breakdown with small ranges
+            tableName = "noise_readings";
+            useRollup = false;
+        }
+
         let timeFormat: string;
         switch (breakdown) {
             case "second":
@@ -64,17 +87,32 @@ export async function GET(request: NextRequest) {
                 timeFormat = "%Y-%m-%dT%H:%i:00Z";
         }
 
-        let query = `
-      SELECT 
-        DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+00:00'), ?) as time,
-        AVG(avg_dba) as avg,
-        MAX(max_dba) as max,
-        MIN(min_dba) as min
-      FROM noise_readings 
-      WHERE created_at BETWEEN ? AND ?
-    `;
-
+        let query: string;
         const params: any[] = [timeFormat, startTime, endTime];
+
+        if (useRollup) {
+            // Query rollup tables
+            query = `
+        SELECT 
+          DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+00:00'), ?) as time,
+          AVG(sum_dba / count) as avg,
+          MAX(max_dba) as max,
+          MIN(min_dba) as min
+        FROM ${tableName}
+        WHERE created_at BETWEEN ? AND ?
+      `;
+        } else {
+            // Query raw readings table
+            query = `
+        SELECT 
+          DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+00:00'), ?) as time,
+          AVG(avg_dba) as avg,
+          MAX(max_dba) as max,
+          MIN(min_dba) as min
+        FROM ${tableName}
+        WHERE created_at BETWEEN ? AND ?
+      `;
+        }
 
         if (deviceId) {
             query += ` AND device_id = ?`;

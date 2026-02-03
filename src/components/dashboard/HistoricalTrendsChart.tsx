@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -49,6 +49,7 @@ export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) 
   const [endDate, setEndDate] = useState<string>('');
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const isAdjustingBreakdown = useRef(false);
 
   // Filter allowed breakdowns based on range
   const filteredBreakdownOptions = useMemo(() => {
@@ -59,6 +60,7 @@ export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) 
   useEffect(() => {
     const isAllowed = filteredBreakdownOptions.some((b) => b.value === breakdown);
     if (!isAllowed && filteredBreakdownOptions.length > 0) {
+      isAdjustingBreakdown.current = true;
       setBreakdown(filteredBreakdownOptions[0].value);
     }
   }, [range, filteredBreakdownOptions, breakdown]);
@@ -99,6 +101,11 @@ export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) 
   };
 
   useEffect(() => {
+    // Skip loading if we're in the middle of adjusting breakdown
+    if (isAdjustingBreakdown.current) {
+      isAdjustingBreakdown.current = false;
+      return;
+    }
     loadData();
   }, [range, breakdown, deviceId, startDate, endDate]);
 

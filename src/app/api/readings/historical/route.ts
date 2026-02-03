@@ -19,18 +19,18 @@ export async function GET(request: NextRequest) {
                 break;
             case "today":
                 startTime = new Date(endTime);
-                startTime.setUTCHours(0, 0, 0, 0);
+                startTime.setHours(0, 0, 0, 0);
                 break;
             case "this_week":
                 startTime = new Date(endTime);
-                const day = startTime.getUTCDay();
-                startTime.setUTCDate(startTime.getUTCDate() - day);
-                startTime.setUTCHours(0, 0, 0, 0);
+                const day = startTime.getDay();
+                startTime.setDate(startTime.getDate() - day);
+                startTime.setHours(0, 0, 0, 0);
                 break;
             case "this_month":
                 startTime = new Date(endTime);
-                startTime.setUTCDate(1);
-                startTime.setUTCHours(0, 0, 0, 0);
+                startTime.setDate(1);
+                startTime.setHours(0, 0, 0, 0);
                 break;
             case "date_range":
                 if (!startDate || !endDate) {

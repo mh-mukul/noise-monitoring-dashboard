@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
             // Use hourly rollup for day breakdown or ranges > 7 days
             tableName = "noise_rollup_hour";
             useRollup = true;
-        } else if (breakdown === "hour" || timeSpanMs > oneDayMs) {
-            // Use minute rollup for hour breakdown or ranges > 1 day
+        } else if (breakdown === "hour" || (breakdown === "minute" && range === "today") || timeSpanMs > oneDayMs) {
+            // Use minute rollup for hour breakdown, "today" minute breakdown, or ranges > 1 day
             tableName = "noise_rollup_minute";
             useRollup = true;
         } else {
@@ -94,12 +94,12 @@ export async function GET(request: NextRequest) {
             // Query rollup tables
             query = `
         SELECT 
-          DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+00:00'), ?) as time,
+          DATE_FORMAT(CONVERT_TZ(bucket_ts, @@session.time_zone, '+00:00'), ?) as time,
           AVG(sum_dba / count) as avg,
           MAX(max_dba) as max,
           MIN(min_dba) as min
         FROM ${tableName}
-        WHERE created_at BETWEEN ? AND ?
+        WHERE bucket_ts BETWEEN ? AND ?
       `;
         } else {
             // Query raw readings table

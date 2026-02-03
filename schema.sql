@@ -14,22 +14,26 @@ CREATE TABLE `noise_readings` (
 
 CREATE TABLE IF NOT EXISTS noise_rollup_minute (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    device_id varchar(45) NOT NULL,
+    device_id VARCHAR(45) NOT NULL,
+    bucket_ts TIMESTAMP NOT NULL,
     min_dba FLOAT NOT NULL,
     max_dba FLOAT NOT NULL,
     sum_dba FLOAT NOT NULL,  -- Used to calculate average
     count INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_device_bucket (device_id, bucket_ts)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS noise_rollup_hour (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    device_id varchar(45) NOT NULL,
+    device_id VARCHAR(45) NOT NULL,
+    bucket_ts TIMESTAMP NOT NULL,
     min_dba FLOAT NOT NULL,
     max_dba FLOAT NOT NULL,
     sum_dba FLOAT NOT NULL,
     count INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_device_bucket (device_id, bucket_ts)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

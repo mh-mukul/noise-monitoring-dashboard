@@ -2,6 +2,7 @@ import { Volume2, RefreshCw, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { DeviceSelector } from './DeviceSelector';
 
 interface DashboardHeaderProps {
@@ -56,6 +57,8 @@ export function DashboardHeader({
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
+
+        <ThemeToggle />
       </div>
     </header>
   );

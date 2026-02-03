@@ -24,29 +24,27 @@ interface HistoricalTrendsChartProps {
   deviceId?: string;
 }
 
-type Range = 'last_hour' | 'today' | 'this_week' | 'this_month' | 'date_range';
+type Range = 'last_hour' | 'today' | 'yesterday' | 'single_date';
 type Breakdown = 'second' | 'minute' | 'hour' | 'day';
 
 const rangeOptions: { value: Range; label: string }[] = [
   { value: 'last_hour', label: 'Last Hour' },
   { value: 'today', label: 'Today' },
-  { value: 'this_week', label: 'This Week' },
-  { value: 'this_month', label: 'This Month' },
-  { value: 'date_range', label: 'Date Range' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'single_date', label: 'Select Date' },
 ];
 
 const breakdownOptions: { value: Breakdown; label: string; allowedRanges: Range[] }[] = [
   { value: 'second', label: 'Second', allowedRanges: ['last_hour'] },
-  { value: 'minute', label: 'Minute', allowedRanges: ['last_hour', 'today'] },
-  { value: 'hour', label: 'Hour', allowedRanges: ['today'] },
-  { value: 'day', label: 'Day', allowedRanges: ['this_week', 'this_month', 'date_range'] },
+  { value: 'minute', label: 'Minute', allowedRanges: ['last_hour', 'today', 'yesterday', 'single_date'] },
+  { value: 'hour', label: 'Hour', allowedRanges: ['today', 'yesterday', 'single_date'] },
+  { value: 'day', label: 'Day', allowedRanges: [] },
 ];
 
 export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) {
   const [range, setRange] = useState<Range>('last_hour');
   const [breakdown, setBreakdown] = useState<Breakdown>('minute');
   const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const isAdjustingBreakdown = useRef(false);
@@ -66,29 +64,22 @@ export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) 
   }, [range, filteredBreakdownOptions, breakdown]);
 
   const loadData = async () => {
-    if (range === 'date_range' && (!startDate || !endDate)) return;
+    if (range === 'single_date' && !startDate) return;
 
     setIsLoading(true);
     try {
       let utcStartDate: string | undefined;
-      let utcEndDate: string | undefined;
 
-      if (range === 'date_range') {
-        // Convert local YYYY-MM-DD to UTC ISO strings
+      if (range === 'single_date') {
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
         utcStartDate = start.toISOString();
-
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        utcEndDate = end.toISOString();
       }
 
       const historicalData = await fetchHistoricalData({
         range,
         breakdown,
         startDate: utcStartDate,
-        endDate: utcEndDate,
         deviceId,
       });
       setData(historicalData);
@@ -107,7 +98,7 @@ export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) 
       return;
     }
     loadData();
-  }, [range, breakdown, deviceId, startDate, endDate]);
+  }, [range, breakdown, deviceId, startDate]);
 
   const chartData = useMemo(() => {
     return data.map((item) => {
@@ -144,19 +135,12 @@ export function HistoricalTrendsChart({ deviceId }: HistoricalTrendsChartProps) 
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {range === 'date_range' && (
+            {range === 'single_date' && (
               <div className="flex items-center gap-2">
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-[150px] h-9"
-                />
-                <span className="text-muted-foreground">-</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
                   className="w-[150px] h-9"
                 />
               </div>

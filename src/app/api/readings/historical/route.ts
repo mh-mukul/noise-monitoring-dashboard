@@ -17,30 +17,30 @@ export async function GET(request: NextRequest) {
             case "last_hour":
                 startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
                 break;
+            case "yesterday":
+                startTime = new Date(endTime);
+                startTime.setDate(startTime.getDate() - 1);
+                startTime.setHours(0, 0, 0, 0);
+
+                endTime = new Date(startTime);
+                endTime.setHours(23, 59, 59, 999);
+                break;
             case "today":
                 startTime = new Date(endTime);
                 startTime.setHours(0, 0, 0, 0);
                 break;
-            case "this_week":
-                startTime = new Date(endTime);
-                const day = startTime.getDay();
-                startTime.setDate(startTime.getDate() - day);
-                startTime.setHours(0, 0, 0, 0);
-                break;
-            case "this_month":
-                startTime = new Date(endTime);
-                startTime.setDate(1);
-                startTime.setHours(0, 0, 0, 0);
-                break;
-            case "date_range":
-                if (!startDate || !endDate) {
+            case "single_date":
+                if (!startDate) {
                     return Response.json(
-                        { error: "startDate and endDate are required for date_range" },
+                        { error: "startDate is required for single_date" },
                         { status: 400 }
                     );
                 }
                 startTime = new Date(startDate);
-                endTime = new Date(endDate);
+                startTime.setHours(0, 0, 0, 0);
+
+                endTime = new Date(startDate);
+                endTime.setHours(23, 59, 59, 999);
                 break;
             default:
                 startTime = new Date(endTime.getTime() - 60 * 60 * 1000);
@@ -59,8 +59,12 @@ export async function GET(request: NextRequest) {
             // Use hourly rollup for day breakdown or ranges > 7 days
             tableName = "noise_rollup_hour";
             useRollup = true;
-        } else if (breakdown === "hour" || (breakdown === "minute" && range === "today") || timeSpanMs > oneDayMs) {
-            // Use minute rollup for hour breakdown, "today" minute breakdown, or ranges > 1 day
+        } else if (
+            breakdown === "hour" ||
+            (breakdown === "minute" && ["today", "yesterday", "single_date"].includes(range || "")) ||
+            timeSpanMs > oneDayMs
+        ) {
+            // Use minute rollup for hour breakdown, "today"/"yesterday"/"single_date" minute breakdown, or ranges > 1 day
             tableName = "noise_rollup_minute";
             useRollup = true;
         } else {
